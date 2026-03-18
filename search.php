@@ -22,9 +22,17 @@ foreach ($dataset as $libro) {
     }
 }
 
-$autores = array_map(
-    fn($nombre) => ['autor' => $nombre],
-    array_keys($autoresMap)
-);
+$autores = [];
+foreach (array_keys($autoresMap) as $nombreAutor) {
+    $librosAutor = array_values(array_filter(
+        $dataset,
+        fn($l) => $l['autor'] === $nombreAutor
+    ));
+    usort($librosAutor, fn($a, $b) => strcmp($b['fecha_nov'], $a['fecha_nov']));
+    $autores[] = [
+        'autor'         => $nombreAutor,
+        'ultimos_libros' => array_slice($librosAutor, 0, 2),
+    ];
+}
 
 echo json_encode(['libros' => $libros, 'autores' => $autores], JSON_UNESCAPED_UNICODE);
