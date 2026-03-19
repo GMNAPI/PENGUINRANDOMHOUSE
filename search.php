@@ -10,14 +10,20 @@ if (empty($texto)) {
 
 $dataset = json_decode(file_get_contents(__DIR__ . '/dataset.json'), true);
 
+if (!$dataset) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Dataset no disponible']);
+    exit;
+}
+
 $libros = [];
 $autoresMap = [];
 
 foreach ($dataset as $libro) {
-    if (stripos($libro['titulo'], $texto) !== false) {
+    if ($libro['titulo'] === $texto) {
         $libros[] = $libro;
     }
-    if (stripos($libro['autor'], $texto) !== false) {
+    if ($libro['autor'] === $texto) {
         $autoresMap[$libro['autor']] = true;
     }
 }

@@ -1,31 +1,32 @@
-# ADR-0002: Búsqueda case-insensitive por subcadena con stripos
+# ADR-0002: Búsqueda por coincidencia exacta de campo
 
 ## Estado
 
-Aceptado
+Actualizado (decisión revisada)
 
 ## Contexto
 
 El enunciado pide buscar por "palabras exactas". Esta expresión admite varias interpretaciones:
 
-1. **Coincidencia exacta de la cadena completa** (`$campo === $texto`): "Jorge" solo devolvería registros cuyo campo vale exactamente "Jorge", sin nada más.
-2. **Subcadena literal, case-insensitive** (`stripos`): "Jorge" aparece en "Jorge Franco", "jorge amado", "Borges" (falso positivo en este caso).
-3. **Coincidencia de palabra completa con límites de palabra** (regex `\bJorge\b`): evita falsos positivos como "Borges", pero añade complejidad y el enunciado no especifica ese nivel de precisión.
+1. **Coincidencia exacta de la cadena completa** (`$campo === $texto`): "Jorge Franco" devuelve solo registros cuyo campo vale exactamente "Jorge Franco".
+2. **Subcadena literal, case-insensitive** (`stripos`): "Jorge" aparece en "Jorge Franco", "jorge amado", "Borges" (falso positivo).
+3. **Coincidencia de palabra completa con límites de palabra** (regex `\bJorge\b`): evita falsos positivos como "Borges", pero añade complejidad.
 4. **Fuzzy matching / similitud fonética**: descartado explícitamente por el enunciado.
 
-El dataset contiene nombres de autor en formato "Nombre Apellido" y títulos con preposiciones, artículos y palabras compuestas. Una coincidencia exacta de campo completo devolvería demasiado pocos resultados para ser útil. El enunciado contextualiza "palabras exactas" como oposición a fuzzy, no como oposición a subcadenas.
+La implementación inicial usaba `stripos` (opción 2). Tras revisar el enunciado, "palabras exactas" se interpreta literalmente: el campo completo debe coincidir con el texto buscado.
 
 ## Decisión
 
-Usar `stripos($campo, $texto) !== false` para la búsqueda. Esto realiza una búsqueda de subcadena literal sin distinción de mayúsculas/minúsculas, sin transformaciones fonéticas ni aproximaciones.
+Usar `$campo === $texto` para la búsqueda. Coincidencia exacta, case-sensitive, sin transformaciones.
 
 ## Consecuencias
 
 **Positivas:**
-- Comportamiento predecible y transparente: el usuario obtiene resultados que contienen literalmente el texto buscado.
-- Respeta acentos y caracteres UTF-8 correctamente con la configuración de locale adecuada.
-- Rendimiento O(n·m) suficiente para 2000 registros sin índices.
+- Semánticamente fiel al enunciado ("palabras exactas" = campo idéntico al parámetro).
+- Sin falsos positivos: buscar "Jorge" no devuelve "Jorge Franco".
+- Rendimiento O(n) — comparación de strings, sin backtracking.
 
 **Negativas:**
-- No distingue límites de palabra: buscar "an" matchea "an", "Franco", "fantasma", etc. Si el requisito real fuera límites de palabra, habría que migrar a `preg_match('/\b' . preg_quote($texto, '/') . '\b/i', $campo)`.
-- Sensible a espacios extra en el texto de búsqueda (no se aplica `trim` implícito en `stripos`). Se podría añadir `trim($texto)` en el preprocesado del parámetro.
+- La API es muy estricta: el cliente debe enviar el nombre de autor o título exacto.
+- Case-sensitive: "jorge franco" ≠ "Jorge Franco". Si se necesitara case-insensitive, bastaría con `strtolower($campo) === strtolower($texto)`.
+- "Sin patrones" del enunciado se interpreta como sin fuzzy/regex, no como sin subcadenas — esta interpretación podría revisarse si el entrevistador aclara lo contrario.
